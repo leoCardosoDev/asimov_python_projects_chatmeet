@@ -13,14 +13,14 @@ client = openai.OpenAI()
 PASTA_AUDIOS = Path(__file__).parent / 'audios'
 PASTA_AUDIOS.mkdir(exist_ok=True)
 
-def transcreve_audio(path_file, language='pt-BR', response_format='text'):
+def transcreve_audio(path_file, language='pt', response_format='text'):
     with open(path_file, 'rb') as audio:
         transcript = client.audio.transcriptions.create(
             model='whisper-1',
             file=audio,
             language=language,
             response_format=response_format)
-    return transcript.text
+    return transcript
 
 def chat_openai(transcript, model='gpt-4o-mini'):
     response = client.chat.completions.create(
@@ -59,18 +59,29 @@ def tab_gravar_reuniao():
     container.markdown('Comece a falar')
     pasta_reuniao = PASTA_AUDIOS / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     pasta_reuniao.mkdir(exist_ok=True)
+    ultima_transcricao = time.time()
     audio_chunks = pydub.AudioSegment.empty()
+    audio_completo = pydub.AudioSegment.empty()
+    transcript = ''
     while True:
         if webrtx_ctx.audio_receiver:
-            container.markdown('Estou recebendo audio')
             try:
                 audio_frame = webrtx_ctx.audio_receiver.get_frames(timeout=1)
             except queue.Empty:
                 time.sleep(0.1)
                 continue
             audio_chunks = adiciona_audio(audio_frame, audio_chunks)
+            audio_completo = adiciona_audio(audio_frame, audio_chunks)
             if len(audio_chunks) > 0:
-                audio_chunks.export(pasta_reuniao / 'audio_temp.mp3', format='mp3')
+                audio_completo.export(pasta_reuniao / 'audio.mp3', format='mp3')
+                agora = time.time()
+                if agora - ultima_transcricao > 15:
+                    ultima_transcricao = agora
+                    audio_chunks.export(pasta_reuniao / 'audio_temp.mp3', format='mp3')
+                    transcript_chunck = transcreve_audio(pasta_reuniao / 'audio_temp.mp3')
+                    transcript += transcript_chunck
+                    container.markdown(f'Transcricao: {transcript}')
+                    audio_chunks = pydub.AudioSegment.empty()
         else:
             break
         
