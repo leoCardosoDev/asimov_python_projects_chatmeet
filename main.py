@@ -13,6 +13,16 @@ client = openai.OpenAI()
 PASTA_AUDIOS = Path(__file__).parent / 'audios'
 PASTA_AUDIOS.mkdir(exist_ok=True)
 
+PROMPT_RESUMO = '''
+    Crie um resumo delimitador por #### detalhado da reunião a seguir, incluindo:
+        1. Objetivo principal da reunião e tópicos discutidos.
+        2. Principais decisões tomadas, encaminhamentos e responsáveis por cada ação.
+        3. Prazos definidos para as próximas etapas ou follow-ups.
+        5. Pendências e questões em aberto.
+        6. Observações ou comentários relevantes.
+    Texto da reunião: ####{}####
+    '''
+
 def lista_arquivos():
     lista_reunioes = PASTA_AUDIOS.glob('*')
     lista_reunioes = list(lista_reunioes)
@@ -24,6 +34,8 @@ def lista_arquivos():
         ano, mes, dia = data.split('-')
         hora, minuto, segundo = hora.split('-')
         reunioes_dict[data_reunião] = f'{dia}-{mes}-{ano} {hora}:{minuto}:{segundo}'
+        titulo = ler_arquivos(pasta_reuniao / 'titulo.txt')
+        reunioes_dict[data_reunião] = f'{titulo} - {reunioes_dict[data_reunião]}'
     return reunioes_dict
 
 def salva_arquivo(path_file, data):
@@ -114,14 +126,27 @@ def tab_selecao_reuniao():
         if not (pasta_reuniao / 'titulo.txt').exists():
             st.warning('Adicione um titulo')
             titulo = st.text_input('Titulo da reunião')
-            st.button('Salvar', on_click=salvar_titulo(pasta_reuniao, titulo))
+            if titulo:
+                st.button('Salvar', on_click=lambda: salvar_titulo(pasta_reuniao, titulo))
         else:
             titulo = ler_arquivos(pasta_reuniao / 'titulo.txt')
             transcript = ler_arquivos(pasta_reuniao / 'transcript.txt')
-            st.markdown(f'# {titulo}')
+            resumo = ler_arquivos(pasta_reuniao / 'resumo.txt')
+            if not resumo:
+                gerar_resumo(pasta_reuniao)
+                resumo = ler_arquivos(pasta_reuniao / 'resumo.txt')
+            st.markdown(f'## {titulo}')
+            st.markdown(f'### Resumo')
+            st.markdown(resumo)
+            st.markdown(f'### Transcrição')
             st.markdown(transcript)
     else:
         st.write('Nenhuma reunião encontrada')
+
+def gerar_resumo(pasta_reuniao):
+    transcript = ler_arquivos(pasta_reuniao / 'transcript.txt')
+    resumo = chat_openai(transcript)
+    salva_arquivo(pasta_reuniao / 'resumo.txt', resumo)
 
 def salvar_titulo(pasta_reuniao, titulo):
     salva_arquivo(pasta_reuniao / 'titulo.txt', titulo)
