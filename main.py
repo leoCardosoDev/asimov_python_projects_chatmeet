@@ -13,6 +13,19 @@ client = openai.OpenAI()
 PASTA_AUDIOS = Path(__file__).parent / 'audios'
 PASTA_AUDIOS.mkdir(exist_ok=True)
 
+def lista_arquivos():
+    lista_reunioes = PASTA_AUDIOS.glob('*')
+    lista_reunioes = list(lista_reunioes)
+    lista_reunioes.sort(reverse=True)
+    reunioes_dict = {}
+    for pasta_reuniao in lista_reunioes:
+        data_reunião = pasta_reuniao.stem
+        data, hora = data_reunião.split('_')
+        ano, mes, dia = data.split('-')
+        hora, minuto, segundo = hora.split('-')
+        reunioes_dict[data_reunião] = f'{dia}-{mes}-{ano} {hora}:{minuto}:{segundo}'
+    return reunioes_dict
+
 def salva_arquivo(path_file, data):
     with open(path_file, 'w') as file:
         file.write(data)
@@ -92,9 +105,33 @@ def tab_gravar_reuniao():
         
 def tab_selecao_reuniao():
     st.subheader('Selecionar Reunião')
-    st.write('Clique no botão abaixo para selecionar uma reunião')
-    if st.button('Selecionar Reunião'):
-        st.write('Reunião selecionada com sucesso')
+    reunioes_dict = lista_arquivos()
+    if len(reunioes_dict) > 0:
+        reuniao_selecionada = st.selectbox('Selecione uma reunião', list(reunioes_dict.values()))
+        st.divider()
+        reuniao_data = [k for k, v in reunioes_dict.items() if v == reuniao_selecionada][0]
+        pasta_reuniao = PASTA_AUDIOS / reuniao_data
+        if not (pasta_reuniao / 'titulo.txt').exists():
+            st.warning('Adicione um titulo')
+            titulo = st.text_input('Titulo da reunião')
+            st.button('Salvar', on_click=salvar_titulo(pasta_reuniao, titulo))
+        else:
+            titulo = ler_arquivos(pasta_reuniao / 'titulo.txt')
+            transcript = ler_arquivos(pasta_reuniao / 'transcript.txt')
+            st.markdown(f'# {titulo}')
+            st.markdown(transcript)
+    else:
+        st.write('Nenhuma reunião encontrada')
+
+def salvar_titulo(pasta_reuniao, titulo):
+    salva_arquivo(pasta_reuniao / 'titulo.txt', titulo)
+
+def ler_arquivos(caminho_arquivo):
+    if caminho_arquivo.exists():
+        with open(caminho_arquivo) as file:
+            return file.read()
+    else:
+        return ''
 
 def main():
     st.header('Bem-vindo ao MeetTranscription')
