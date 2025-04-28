@@ -13,6 +13,10 @@ client = openai.OpenAI()
 PASTA_AUDIOS = Path(__file__).parent / 'audios'
 PASTA_AUDIOS.mkdir(exist_ok=True)
 
+def salva_arquivo(path_file, data):
+    with open(path_file, 'w') as file:
+        file.write(data)
+
 def transcreve_audio(path_file, language='pt', response_format='text'):
     with open(path_file, 'rb') as audio:
         transcript = client.audio.transcriptions.create(
@@ -80,6 +84,7 @@ def tab_gravar_reuniao():
                     audio_chunks.export(pasta_reuniao / 'audio_temp.mp3', format='mp3')
                     transcript_chunck = transcreve_audio(pasta_reuniao / 'audio_temp.mp3')
                     transcript += transcript_chunck
+                    salva_arquivo(pasta_reuniao / 'transcript.txt', transcript)
                     container.markdown(f'Transcricao: {transcript}')
                     audio_chunks = pydub.AudioSegment.empty()
         else:
