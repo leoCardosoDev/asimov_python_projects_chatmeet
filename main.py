@@ -28,6 +28,17 @@ def chat_openai(transcript, model='gpt-4o-mini'):
         messages=[{'role': 'user', 'content': transcript}]
     )
     return response.choices[0].message.content
+
+def adiciona_audio(audio_frame, audio_chunks):
+    for frame in audio_frame:
+        sound = pydub.AudioSegment(
+            data=frame.to_ndarray().tobytes(),
+            sample_width=frame.format.bytes,
+            frame_rate=frame.sample_rate,
+            channels=len(frame.layout.channels)
+        )
+        audio_chunks += sound
+    return audio_chunks
     
 
 def tab_gravar_reuniao():
@@ -57,14 +68,7 @@ def tab_gravar_reuniao():
             except queue.Empty:
                 time.sleep(0.1)
                 continue
-            for frame in audio_frame:
-                sound = pydub.AudioSegment(
-                    data=frame.to_ndarray().tobytes(),
-                    sample_width=frame.format.bytes,
-                    frame_rate=frame.sample_rate,
-                    channels=len(frame.layout.channels)
-                )
-                audio_chunks += sound
+            audio_chunks = adiciona_audio(audio_frame, audio_chunks)
             if len(audio_chunks) > 0:
                 audio_chunks.export(pasta_reuniao / 'audio_temp.mp3', format='mp3')
         else:
